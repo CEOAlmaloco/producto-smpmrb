@@ -6,9 +6,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from smpmrb.catalogo import canales_desde_encabezado, cargar_encabezado
-from smpmrb.db import conectar, crear_umbrales
+from smpmrb.db import conectar, crear_umbrales, nivel_umbral
 from smpmrb.estado import evaluar, preparar
 from smpmrb.medicion import registrar_medicion
+from smpmrb.proveedor_simulado import TOKEN_SIMULADO, capturar
 from smpmrb.registro import RegistroError, confirmar_identidad, ficha, registrar_puente, cargar_puentes_piloto
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -75,16 +76,54 @@ class MedicionTest(unittest.TestCase):
             registrar_medicion(self.con, sensor_id, 0.01, "deg", "2026-10-20T00:00:00", "api_proveedor_municipal")
         self.assertEqual(self.con.execute("SELECT COUNT(*) AS n FROM medicion").fetchone()["n"], 0)
 
+    def test_captura_simulada_no_habilita_la_api(self):
+        n = capturar(self.con, TOKEN_SIMULADO, "2026-10-21T12:00:00")
+        self.assertEqual(n, 12)
+        self.assertEqual(capturar(self.con, TOKEN_SIMULADO, "2026-10-21T12:00:00"), 12)
+        origenes = {fila["origen"] for fila in self.con.execute("SELECT origen FROM medicion")}
+        self.assertEqual(origenes, {"simulado"})
+        sin_acceso = self.con.execute(
+            "SELECT COUNT(*) AS n FROM sensor_municipal WHERE estado_acceso = 'sin_credencial'"
+        ).fetchone()["n"]
+        self.assertEqual(sin_acceso, 12)
+        por_edt = {fila["edt"]: fila["estado"] for fila in evaluar(self.con)}
+        self.assertEqual(por_edt["1.3.4"], "bloqueado")
+        self.assertEqual(por_edt["1.4.3"], "bloqueado")
+
+    def test_rechaza_token_distinto_del_simulado(self):
+        with self.assertRaises(RegistroError):
+            capturar(self.con, "credencial-del-proveedor", "2026-10-21T12:00:00")
+        self.assertEqual(self.con.execute("SELECT COUNT(*) AS n FROM medicion").fetchone()["n"], 0)
+
+
+class UmbralTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.con = conectar(Path(self.tmp.name) / "t.sqlite")
+        crear_umbrales(self.con)
+
+    def tearDown(self):
+        self.con.close()
+        self.tmp.cleanup()
+
+    def test_clasifica_vibracion_e_inclinacion_por_nivel(self):
+        self.assertEqual(nivel_umbral(self.con, "vibracion", 0.3), "normal")
+        self.assertEqual(nivel_umbral(self.con, "vibracion", 0.5), "atencion")
+        self.assertEqual(nivel_umbral(self.con, "vibracion", 1.2), "alerta")
+        self.assertEqual(nivel_umbral(self.con, "vibracion", 3.0), "critico")
+        self.assertEqual(nivel_umbral(self.con, "inclinacion", -0.25), "alerta")
+        self.assertEqual(nivel_umbral(self.con, "inclinacion", 0.5), "critico")
+
 
 class EstadoTest(unittest.TestCase):
-    def test_estado_al_20_10_2026(self):
+    def test_estado_al_21_10_2026(self):
         tmp = tempfile.TemporaryDirectory()
         con = conectar(Path(tmp.name) / "t.sqlite")
         preparar(con, ENCABEZADO)
         por_edt = {fila["edt"]: fila["estado"] for fila in evaluar(con)}
         self.assertEqual(por_edt["1.4.2"], "atrasado_parcial")
         self.assertEqual(por_edt["1.3.4"], "bloqueado")
-        self.assertEqual(por_edt["1.3.2"], "bloqueado")
+        self.assertEqual(por_edt["1.3.2"], "atrasado_hecho")
         self.assertEqual(por_edt["1.4.3"], "bloqueado")
         self.assertEqual(por_edt["1.4.4"], "no_iniciado")
         self.assertEqual(con.execute("SELECT COUNT(*) AS n FROM canal_publico").fetchone()["n"], 2)

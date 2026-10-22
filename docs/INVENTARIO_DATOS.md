@@ -56,20 +56,20 @@ Hay algo que se debe acordar con el proveedor: en los conjuntos públicos revisa
 | Puente y componente | referencia | Registro |
 | Fecha | fecha | Inspector |
 | Inspector | texto | Inspector |
-| Condición | escala definida por la DOM | Inspector |
+| Severidad | baja, media, alta o crítica (Manual de Carreteras MOP, Vol. 7, más «crítica» del proyecto) | Inspector |
 | Observación | texto | Inspector |
 | Fotografía | archivo | Inspector |
 
-No viene de ninguna API: se captura en el sistema. Falta que la DOM defina la escala de condición.
+No viene de ninguna API: el inspector la ingresa en un formulario del sistema, desde el celular o la tablet. La escala y su equivalencia con los niveles de alerta están en `LEVANTAMIENTO_IOT.md`.
 
 ### 4. Umbrales (tarea 1.3.2)
 
 | Dato | Tipo | Origen | Disponible hoy |
 |---|---|---|---|
 | Variable | `vibracion` / `inclinacion` | Equipo | Sí |
-| Valor límite | decimal | Contraparte estructural | No |
-| Unidad | texto | Equipo | Sí |
-| Validado por | texto | Contraparte estructural | No |
+| Nivel y valor desde el que aplica | atención, alerta, crítico | Equipo, a partir de normas publicadas | Sí, desde el 21/10/2026 |
+| Unidad y forma de cálculo | texto | Equipo | Sí |
+| Revisión estructural | estado | Contraparte estructural | Antes de la puesta en marcha |
 
 ### 5. Datos generados por el sistema (tareas 1.4.4 a 1.4.6)
 
@@ -119,13 +119,13 @@ Hay puentes instrumentados (Bicentenario, ferroviario sobre el Biobío, Treng Tr
 | Fase | Fecha planificada | Qué se puede hacer con lo disponible |
 |---|---|---|
 | 1.3.1 Levantamiento IoT | 16/09/2026 | Hecho con fuentes públicas. Falta la documentación del proveedor real. |
-| 1.3.2 Umbrales | 30/09/2026 | Bloqueado: depende de la contraparte estructural. |
+| 1.3.2 Umbrales | 30/09/2026 | Adoptados por el equipo el 21/10, con fuente normativa. Falta la revisión de la contraparte. |
 | 1.3.3 Correspondencia sensor-componente | 23/09/2026 | Parcial: hay seis sensores por puente, sin código del proveedor. |
 | 1.3.4 Acceso a la API | 30/09/2026 | Bloqueado: sin URL ni credenciales. |
 | 1.3.5 Validación de conectividad | 12/10/2026 | Bloqueado. |
 | 1.4.2 Registro de infraestructura | 29/09/2026 | Se puede completar con los dos puentes de referencia del catastro MOP. |
-| 1.4.3 Captura de mediciones | después de 1.3.5 | Se puede construir contra una API simulada; la carga real espera a 1.3.5. |
-| 1.4.4 Reglas de alerta | 03/11/2026 | Se puede programar la lógica; los valores esperan a 1.3.2. |
+| 1.4.3 Captura de mediciones | después de 1.3.5 | Hay un proveedor simulado local (`smpmrb.proveedor_simulado`). La carga real espera a 1.3.5. |
+| 1.4.4 Reglas de alerta | 03/11/2026 | La lógica puede usar los umbrales adoptados. Las alertas reales esperan mediciones del proveedor. |
 | 1.4.5 Panel de monitoreo | 24/11/2026 | Se puede construir con datos de referencia y simulados. |
 | 1.4.6 Planificación de mantenimiento | 24/11/2026 | No depende de terceros. |
 | 1.5 Pruebas integrales y aceptación | dic 2026 | La prueba 1.5.2.6 exige la API real. |
@@ -138,11 +138,11 @@ El incremento comprometido en el sprint review de la EV2 es el registro de infra
 | Incremento | Contenido | Fecha planificada | Condición para cerrarlo |
 |---|---|---|---|
 | Actual | Registro de los dos puentes con la ficha del catastro MOP, componentes y sensores | 29/09/2026 (atrasado) | La DOM confirma los puentes o acepta los de referencia |
-| Siguiente | Captura de mediciones contra una API simulada, con los cinco campos acordados | Después de 1.3.5 | Cambiar a la API real cuando lleguen las credenciales |
-| Siguiente | Reglas de alerta con umbrales de prueba | 03/11/2026 | Reemplazar los umbrales de prueba por los validados (1.3.2) |
+| Siguiente | Captura de mediciones contra una API simulada, con los cinco campos acordados, y formulario de inspección visual | 26/10/2026 (bloqueada por la API) | Cambiar a la API real cuando lleguen las credenciales |
+| Siguiente | Reglas de alerta con los umbrales adoptados | 03/11/2026 | Ajustar valores si la contraparte los cambia |
 | Cierre de 1.4 (MVP) | Panel de monitoreo y planificación de mantenimiento | 24/11/2026 | Pruebas 1.5 en diciembre |
 
-Preparar la API simulada mientras se espera al proveedor está dentro de lo acordado: la planilla de seguimiento del 06/10 indica para 1.4.3 «no forzar: esperar 1.3.4/1.3.5; preparar mock». No cambia el alcance ni las fechas.
+Preparar la API simulada mientras se espera al proveedor está dentro de lo acordado: la planilla de seguimiento con corte al 26/10 indica para 1.4.3 avanzar el formulario de inspección visual, que no depende de la API, y usar datos de prueba identificados. No cambia el alcance ni las fechas.
 
 ## Propuesta para el MVP con panel
 
@@ -158,5 +158,5 @@ El MVP al cierre de 1.4 (24/11/2026) puede mostrar el panel de la Municipalidad 
 Condiciones para que la simulación no se confunda con el sistema real:
 
 - Cada medición guarda su origen (`simulado` o `api_proveedor`), y el panel lo muestra.
-- Los umbrales del MVP se etiquetan como de prueba, no como valores validados.
+- Los umbrales del MVP son los adoptados por el equipo; se muestran como «sin revisión estructural» hasta que la contraparte los revise.
 - Al recibir las credenciales reales, solo cambian la URL y la autenticación de `captura`; el resto del sistema se mantiene.

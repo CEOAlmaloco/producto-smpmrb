@@ -16,11 +16,11 @@ Módulo de captura (smpmrb.medicion)
         ▼
 Base de datos SQLite
         ├── puentes, componentes y sensores   (smpmrb.registro)
-        ├── umbrales, sin valores aún
+        ├── umbrales: 3 niveles por variable, adoptados por el equipo
         └── mediciones
 ```
 
-Mientras no exista acceso a la API, el módulo de captura rechaza cualquier medición municipal.
+Mientras no exista acceso a la API, el módulo de captura rechaza una medición que se presente como proveniente del proveedor. `smpmrb.proveedor_simulado` puede guardar lecturas de prueba con origen `simulado`. Esas lecturas no cierran las tareas 1.3.4 ni 1.3.5.
 
 El conjunto de datos público de Múnich se usa solo como referencia del formato de los datos. Sus canales se guardan en una tabla aparte (`canal_publico`) y no se asocian a los puentes del piloto.
 

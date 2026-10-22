@@ -7,7 +7,7 @@ from smpmrb.catalogo import cargar_encabezado
 from smpmrb.db import conectar, crear_umbrales
 from smpmrb.registro import cargar_puentes_piloto
 
-HOY = "2026-10-20"
+HOY = "2026-10-21"
 
 PLAN = (
     {
@@ -83,10 +83,11 @@ def evaluar(con: sqlite3.Connection) -> list[dict]:
         "SELECT COUNT(*) AS n FROM sensor_municipal WHERE estado_acceso = 'sin_credencial'"
     ).fetchone()["n"]
     canales = con.execute("SELECT COUNT(*) AS n FROM canal_publico").fetchone()["n"]
-    umbrales_firmados = con.execute(
-        "SELECT COUNT(*) AS n FROM umbral WHERE estado = 'firmado' AND valor IS NOT NULL"
-    ).fetchone()["n"]
+    umbrales = con.execute("SELECT COUNT(*) AS n FROM umbral").fetchone()["n"]
     mediciones = con.execute("SELECT COUNT(*) AS n FROM medicion").fetchone()["n"]
+    simuladas = con.execute(
+        "SELECT COUNT(*) AS n FROM medicion WHERE origen = 'simulado'"
+    ).fetchone()["n"]
 
     evidencias = {
         "ambiente": (
@@ -107,8 +108,9 @@ def evaluar(con: sqlite3.Connection) -> list[dict]:
             f"{puentes} puentes registrados, {confirmados} con nombre y ubicación confirmados por la DOM.",
         ),
         "umbrales": (
-            "bloqueado",
-            f"{umbrales_firmados} umbrales con valor. Pendiente la validación de ingeniería estructural.",
+            "atrasado_hecho" if umbrales == 6 else "atrasado_parcial",
+            f"{umbrales} umbrales adoptados por el equipo (vibración e inclinación, 3 niveles), con fuente. "
+            "La contraparte estructural los revisa antes de la puesta en marcha.",
         ),
         "api": (
             "bloqueado",
@@ -120,11 +122,12 @@ def evaluar(con: sqlite3.Connection) -> list[dict]:
         ),
         "captura": (
             "bloqueado",
-            f"{mediciones} mediciones guardadas. Requiere acceso a la API.",
+            f"{mediciones} mediciones guardadas ({simuladas} simuladas). "
+            "La captura real requiere la URL y las credenciales del proveedor.",
         ),
         "alertas": (
             "no_iniciado",
-            "Requiere umbrales validados y mediciones.",
+            "Umbrales disponibles. Requiere mediciones reales de la API.",
         ),
     }
     filas = []

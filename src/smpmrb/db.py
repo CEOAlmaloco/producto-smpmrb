@@ -40,12 +40,15 @@ CREATE TABLE IF NOT EXISTS canal_publico (
 );
 
 CREATE TABLE IF NOT EXISTS umbral (
-    variable TEXT PRIMARY KEY,
-    valor REAL,
+    variable TEXT NOT NULL CHECK (variable IN ('vibracion', 'inclinacion')),
+    nivel TEXT NOT NULL CHECK (nivel IN ('atencion', 'alerta', 'critico')),
+    desde REAL NOT NULL,
     unidad TEXT NOT NULL,
-    firmado_por TEXT,
+    base_calculo TEXT NOT NULL,
+    fuente TEXT NOT NULL,
     estado TEXT NOT NULL
-        CHECK (estado IN ('pendiente_contraparte', 'firmado'))
+        CHECK (estado IN ('adoptado_equipo', 'revisado_contraparte')),
+    PRIMARY KEY (variable, nivel)
 );
 
 CREATE TABLE IF NOT EXISTS medicion (
@@ -68,14 +71,44 @@ def conectar(ruta: Path) -> sqlite3.Connection:
     return con
 
 
+VIBRACION_BASE = "Aceleración vertical pico del componente en ventanas de 1 minuto."
+INCLINACION_BASE = "Cambio respecto de la referencia del sensor (promedio de sus primeros 30 días), promedio móvil de 1 hora."
+SETRA = "Sétra 2006 / HiVoSS, clases de confort; EN 1990 Anexo A2 recomienda 0,7 m/s2."
+AASHTO = "AASHTO LRFD 10.5.2.2: distorsión angular 0,004 rad (continuos) y 0,008 rad (tramo simple)."
+
+UMBRALES = (
+    ("vibracion", "atencion", 0.5, "m/s2", VIBRACION_BASE, SETRA),
+    ("vibracion", "alerta", 1.0, "m/s2", VIBRACION_BASE, SETRA),
+    ("vibracion", "critico", 2.5, "m/s2", VIBRACION_BASE, SETRA),
+    ("inclinacion", "atencion", 0.115, "deg", INCLINACION_BASE, AASHTO),
+    ("inclinacion", "alerta", 0.229, "deg", INCLINACION_BASE, AASHTO),
+    ("inclinacion", "critico", 0.458, "deg", INCLINACION_BASE, AASHTO),
+)
+ORDEN_NIVELES = ("atencion", "alerta", "critico")
+
+
 def crear_umbrales(con: sqlite3.Connection) -> None:
-    """Crea los umbrales de vibración e inclinación sin valor."""
+    """Carga los umbrales adoptados por el equipo; la contraparte los revisa antes de la puesta en marcha."""
     con.executemany(
         """
-        INSERT INTO umbral (variable, valor, unidad, firmado_por, estado)
-        VALUES (?, NULL, ?, NULL, 'pendiente_contraparte')
-        ON CONFLICT(variable) DO NOTHING
+        INSERT INTO umbral (variable, nivel, desde, unidad, base_calculo, fuente, estado)
+        VALUES (?, ?, ?, ?, ?, ?, 'adoptado_equipo')
+        ON CONFLICT(variable, nivel) DO NOTHING
         """,
-        [("vibracion", "m/s2"), ("inclinacion", "deg")],
+        UMBRALES,
     )
     con.commit()
+
+
+def nivel_umbral(con: sqlite3.Connection, variable: str, valor: float) -> str:
+    """Devuelve 'normal' o el nivel más alto cuyo valor 'desde' se alcanza; para inclinación se usa el valor absoluto."""
+    filas = con.execute(
+        "SELECT nivel, desde FROM umbral WHERE variable = ?", (variable,)
+    ).fetchall()
+    if not filas:
+        raise ValueError(f"No hay umbrales cargados para {variable}.")
+    medido = abs(valor)
+    alcanzados = [f["nivel"] for f in filas if medido >= f["desde"]]
+    if not alcanzados:
+        return "normal"
+    return max(alcanzados, key=ORDEN_NIVELES.index)

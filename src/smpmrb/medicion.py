@@ -19,10 +19,13 @@ def registrar_medicion(
     ).fetchone()
     if sensor is None:
         raise RegistroError(f"No existe el sensor {sensor_id}.")
-    if sensor["estado_acceso"] != "con_credencial" or not sensor["codigo_proveedor"]:
-        raise RegistroError(f"El sensor {sensor_id} no tiene código ni credenciales del proveedor.")
-    if origen != "api_proveedor_municipal":
-        raise RegistroError("Solo se aceptan mediciones provenientes de la API del proveedor.")
+    if origen == "simulado":
+        pass
+    elif origen == "api_proveedor_municipal":
+        if sensor["estado_acceso"] != "con_credencial" or not sensor["codigo_proveedor"]:
+            raise RegistroError(f"El sensor {sensor_id} no tiene código ni credenciales del proveedor.")
+    else:
+        raise RegistroError("El origen debe ser 'simulado' o 'api_proveedor_municipal'.")
     cur = con.execute(
         """
         INSERT INTO medicion (sensor_id, valor, unidad, instante, origen)
